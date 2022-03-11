@@ -121,7 +121,10 @@ class Baseline(nn.Module):
         
     def load_param(self, trained_path):
         param_dict = torch.load(trained_path)
-        for i in param_dict:
+        # print("Model's state_dict:")
+        # for param_tensor in param_dict.state_dict():
+        #     print(param_tensor, "\t", param_dict.state_dict()[param_tensor].size())
+        for i in param_dict.state_dict():
             if 'classifier' in i:
                 continue
-            self.state_dict()[i].copy_(param_dict[i])
+            self.state_dict()[i].copy_(param_dict.state_dict()[i])

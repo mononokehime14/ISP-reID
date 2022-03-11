@@ -1,0 +1,233 @@
+2022-03-02 09:55:52,150 reid_baseline INFO: Using 1 GPUS
+2022-03-02 09:55:52,150 reid_baseline INFO: Namespace(config_file='configs/softmax_triplet.yml', opts=['MODEL.DEVICE_ID', "('0')", 'MODEL.IF_WITH_CENTER', "('no')", 'MODEL.NAME', "('HRNet32')", 'MODEL.PRETRAIN_PATH', "('/Users/apple/Desktop/ISP-reID/checkpoints/hrnetv2_w32_imagenet_pretrained.pth')", 'DATASETS.NAMES', "('dukemtmc')", 'DATASETS.ROOT_DIR', "('./data')", 'CLUSTERING.PART_NUM', '(7)', 'DATASETS.PSEUDO_LABEL_SUBDIR', "('bounding_box_train')", 'OUTPUT_DIR', "('./log/ISP-Duke-7')", 'SOLVER.MAX_EPOCHS', '1'])
+2022-03-02 09:55:52,150 reid_baseline INFO: Loaded configuration file configs/softmax_triplet.yml
+2022-03-02 09:55:52,151 reid_baseline INFO: 
+MODEL:
+  PRETRAIN_CHOICE: 'imagenet'
+  PRETRAIN_PATH: 'checkpoints/hrnetv2_w48_imagenet_pretrained.pth'
+  METRIC_LOSS_TYPE: 'triplet'
+  IF_LABELSMOOTH: 'on'
+  IF_WITH_CENTER: 'on'
+
+  NAME: HRNet32
+  
+  EXTRA:
+    FINAL_CONV_KERNEL: 1
+    STAGE2:
+      NUM_MODULES: 1
+      NUM_BRANCHES: 2
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 32
+      - 64
+      FUSE_METHOD: SUM
+    STAGE3:
+      NUM_MODULES: 4
+      NUM_BRANCHES: 3
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 32
+      - 64
+      - 128
+      FUSE_METHOD: SUM
+    STAGE4:
+      NUM_MODULES: 3
+      NUM_BRANCHES: 4
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 32
+      - 64
+      - 128
+      - 256
+      FUSE_METHOD: SUM
+
+
+
+INPUT:
+  SIZE_TRAIN: [256, 128]
+  SIZE_TEST: [256, 128]
+  PROB: 0.5 # random horizontal flip
+  RE_PROB: 0.5 # random erasing
+  PADDING: 10
+
+CLUSTERING:
+  AL: 'Kmeans'
+  PERIOD: 2
+  STOP: 101
+  PART_NUM: 7
+
+DATASETS:
+  NAMES: ('dukemtmc')
+  PSEUDO_LABEL_SUBDIR: ('train_pseudo_labels-ISP-7')
+  PREDICTED_GT_SUBDIR: ('bounding_box_train_parsing_pgt')
+  
+DATALOADER:
+  SAMPLER: 'softmax_triplet'
+  NUM_INSTANCE  : 4
+  NUM_WORKERS: 4
+
+SOLVER:
+  OPTIMIZER_NAME: 'Adam'
+  MAX_EPOCHS: 40
+  BASE_LR: 0.00035
+
+  CLUSTER_MARGIN: 0.3
+
+  CENTER_LR: 0.5
+  CENTER_LOSS_WEIGHT: 0.0005
+  
+  PARSING_LOSS_WEIGHT: 0.1
+
+  RANGE_K: 2
+  RANGE_MARGIN: 0.3
+  RANGE_ALPHA: 0
+  RANGE_BETA: 1
+  RANGE_LOSS_WEIGHT: 1
+
+  BIAS_LR_FACTOR: 1
+  WEIGHT_DECAY: 0.0005
+  WEIGHT_DECAY_BIAS: 0.0005
+  IMS_PER_BATCH: 32
+
+  STEPS: [40, 70]
+  GAMMA: 0.1
+
+  WARMUP_FACTOR: 0.01
+  WARMUP_ITERS: 10
+  WARMUP_METHOD: 'linear'
+
+  CHECKPOINT_PERIOD: 40
+  LOG_PERIOD: 20
+  EVAL_PERIOD: 40
+
+TEST:
+  IMS_PER_BATCH: 128
+  RE_RANKING: 'no'
+  WEIGHT: "path"
+  NECK_FEAT: 'after'
+  FEAT_NORM: 'yes'
+
+OUTPUT_DIR: "./"
+
+2022-03-02 09:55:52,151 reid_baseline INFO: Running with config:
+CLUSTERING:
+  AL: Kmeans
+  ENHANCED: True
+  PART_NUM: 7
+  PERIOD: 2
+  STOP: 101
+DATALOADER:
+  NUM_INSTANCE: 4
+  NUM_WORKERS: 4
+  SAMPLER: softmax_triplet
+DATASETS:
+  NAMES: dukemtmc
+  PREDICTED_GT_SUBDIR: bounding_box_train_parsing_pgt
+  PSEUDO_LABEL_SUBDIR: bounding_box_train
+  ROOT_DIR: ./data
+INPUT:
+  PADDING: 10
+  PIXEL_MEAN: [0.485, 0.456, 0.406]
+  PIXEL_STD: [0.229, 0.224, 0.225]
+  PROB: 0.5
+  RE_PROB: 0.5
+  SIZE_TEST: [256, 128]
+  SIZE_TRAIN: [256, 128]
+MODEL:
+  DEVICE: cpu
+  DEVICE_ID: 0
+  EXTRA:
+    FINAL_CONV_KERNEL: 1
+    PRETRAINED_LAYERS: ['*']
+    STAGE2:
+      BLOCK: BASIC
+      FUSE_METHOD: SUM
+      NUM_BLOCKS: [4, 4]
+      NUM_BRANCHES: 2
+      NUM_CHANNELS: [32, 64]
+      NUM_MODULES: 1
+    STAGE3:
+      BLOCK: BASIC
+      FUSE_METHOD: SUM
+      NUM_BLOCKS: [4, 4, 4]
+      NUM_BRANCHES: 3
+      NUM_CHANNELS: [32, 64, 128]
+      NUM_MODULES: 4
+    STAGE4:
+      BLOCK: BASIC
+      FUSE_METHOD: SUM
+      NUM_BLOCKS: [4, 4, 4, 4]
+      NUM_BRANCHES: 4
+      NUM_CHANNELS: [32, 64, 128, 256]
+      NUM_MODULES: 3
+    STEM_INPLANES: 64
+    WITH_HEAD: True
+  HEATMAP_SIZE: [128, 64]
+  IF_BIGG: False
+  IF_LABELSMOOTH: on
+  IF_WITH_CENTER: no
+  IMAGE_SIZE: [256, 128]
+  INIT_WEIGHTS: True
+  LAST_STRIDE: 1
+  METRIC_LOSS_TYPE: triplet
+  NAME: HRNet32
+  NECK: bnneck
+  NUM_CLASSES: 1000
+  NUM_JOINTS: 17
+  PRETRAINED: 
+  PRETRAIN_CHOICE: imagenet
+  PRETRAIN_PATH: /Users/apple/Desktop/ISP-reID/checkpoints/hrnetv2_w32_imagenet_pretrained.pth
+  SIGMA: 2
+  TAG_PER_JOINT: True
+  TARGET_TYPE: gaussian
+OUTPUT_DIR: ./log/ISP-Duke-7
+SOLVER:
+  ALIGN_LOSS_WEIGHT: 0.01
+  BASE_LR: 0.00035
+  BIAS_LR_FACTOR: 1
+  CENTER_LOSS_WEIGHT: 0.0005
+  CENTER_LR: 0.5
+  CHECKPOINT_PERIOD: 40
+  CLUSTER_MARGIN: 0.3
+  EVAL_PERIOD: 40
+  GAMMA: 0.1
+  IMS_PER_BATCH: 32
+  LOG_PERIOD: 20
+  MARGIN: 0.3
+  MAX_EPOCHS: 1
+  MOMENTUM: 0.9
+  OPTIMIZER_NAME: Adam
+  PARSING_LOSS_WEIGHT: 0.1
+  RANGE_ALPHA: 0
+  RANGE_BETA: 1
+  RANGE_K: 2
+  RANGE_LOSS_WEIGHT: 1
+  RANGE_MARGIN: 0.3
+  STEPS: (40, 70)
+  WARMUP_FACTOR: 0.01
+  WARMUP_ITERS: 10
+  WARMUP_METHOD: linear
+  WEIGHT_DECAY: 0.0005
+  WEIGHT_DECAY_BIAS: 0.0005
+TEST:
+  FEAT_NORM: yes
+  IMS_PER_BATCH: 128
+  NECK_FEAT: after
+  RE_RANKING: no
+  WEIGHT: path
+  WITH_ARM: False
+TRAIN:
+  IGNORE_LABEL: -1
+2022-03-02 09:55:54,775 reid_baseline.train INFO: Start training, total epochs 1

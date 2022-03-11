@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from ignite.metrics import Metric
 
-from data.datasets.eval_reid import eval_func, arm_eval_func
+from data.datasets.eval_reid import eval_func, arm_eval_func, arm_eval_func_nocamid
 from .re_ranking import re_ranking
 
 
@@ -150,3 +150,56 @@ class R1_mAP_reranking(Metric):
         cmc, mAP = eval_func(distmat, q_pids, g_pids, q_camids, g_camids)
 
         return cmc, mAP
+
+class R1_mAP_arm_nocamid(Metric):
+    def __init__(self, num_query, max_rank=50, feat_norm='yes'):
+        super(R1_mAP_arm_nocamid, self).__init__()
+        self.num_query = num_query
+        self.max_rank = max_rank
+        self.feat_norm = feat_norm
+
+    def reset(self):
+        self.g_f_feats = []
+        self.part_feats = []
+        self.part_visibles = []
+        self.pids = []
+
+    def update(self, output):
+        g_f_feat, part_feat, part_visible, pid = output
+        self.g_f_feats.append(g_f_feat)
+        self.part_feats.append(part_feat)
+        self.part_visibles.extend(np.asarray(part_visible))
+        self.pids.extend(np.asarray(pid))
+
+    def compute(self):
+        g_f_feats = torch.cat(self.g_f_feats, dim=0)
+        part_feats = torch.cat(self.part_feats, dim=0)
+        # query
+        q_gf_f = g_f_feats[:self.num_query]
+        q_part_f = part_feats[:self.num_query]
+        q_pids = torch.Tensor(self.pids[:self.num_query])
+        q_part_visible = torch.Tensor(self.part_visibles[:self.num_query])
+        
+        # gallery
+        g_gf_f = g_f_feats[self.num_query:]
+        g_part_f = part_feats[self.num_query:]
+        g_pids = torch.Tensor(self.pids[self.num_query:])
+        g_part_visible = torch.Tensor(self.part_visibles[self.num_query:])
+        # tgpl:total gallery part label; tgf:total gallery partial feature; tgf2:total gallery pose-guided global feature; tgl:total gallery label; tgc: total gallery camera id
+        # tqpl:total query part label; tqf:total query partial feature; tqf2:total query pose-guided global feature; tql:total query label; tqc: total query camera id
+        count=0
+        CMC=torch.IntTensor(len(g_pids)).zero_()    
+        ap=0.0
+      
+        for qf,qf2,qpl,ql in zip(q_part_f,q_gf_f,q_part_visible,q_pids):
+            (ap_tmp, CMC_tmp),index = arm_eval_func_nocamid(qf,qf2,qpl,ql,g_part_f,g_gf_f,g_part_visible,g_pids) #
+            if CMC_tmp[0]==-1:
+                continue
+            CMC = CMC + CMC_tmp
+            ap += ap_tmp
+            count+=1
+        CMC = CMC.float()
+        CMC = CMC/count #average CMC
+        mAP = ap/count
+
+        return CMC, mAP

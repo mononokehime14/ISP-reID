@@ -506,7 +506,9 @@ class HighResolutionNet(nn.Module):
         return nn.Sequential(*modules), num_inchannels
 
     def forward(self, x):
+        #print(f"current img size {x.size()}")
         x = self.conv1(x)
+        #print(f"after conv1 size {x.size()}")
         x = self.bn1(x)
         x = self.relu(x)
         x = self.conv2(x)
@@ -582,15 +584,15 @@ class HighResolutionNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
     def load_param(self, pretrained_path):
-      	pretrained_dict = torch.load(pretrained_path)
-      	logger.info('=> loading pretrained model {}'.format(pretrained_path))
-      	model_dict = self.state_dict()
-      	pretrained_dict = {k: v for k, v in pretrained_dict.items()
-      			   if k in model_dict.keys()}
-      	for k, _ in pretrained_dict.items():
-      	    logger.info(
-      		    '=> loading {} pretrained model {}'.format(k, pretrained_path))
-      	model_dict.update(pretrained_dict)
-      	self.load_state_dict(model_dict)
+        pretrained_dict = torch.load(pretrained_path)
+        logger.info('=> loading pretrained model {}'.format(pretrained_path))
+        model_dict = self.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items()
+                    if k in model_dict.keys()}
+        for k, _ in pretrained_dict.items():
+            logger.info(
+                '=> loading {} pretrained model {}'.format(k, pretrained_path))
+        model_dict.update(pretrained_dict)
+        self.load_state_dict(model_dict)
 
 

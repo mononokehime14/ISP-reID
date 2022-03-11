@@ -17,6 +17,7 @@ from PIL import Image
 import time
 import numpy as np
 import math
+from tqdm import tqdm
 
 
 from utils.reid_metric import R1_mAP, R1_mAP_arm
@@ -39,7 +40,14 @@ def create_supervised_trainer_with_center(model, center_criterion_part, center_c
         Engine: a trainer engine with supervised update function
     """
     if device:
+        print(f"====check whether model in on GPU:{device}====")
         model.to(device)
+        #model.cuda()
+        # try:
+        #     print(next(model.parameters()).is_cuda)
+        # except:
+        #     print("next(model.parameters()).is_cuda failed")
+
 
     def _update(engine, batch):
         model.train()
@@ -49,7 +57,26 @@ def create_supervised_trainer_with_center(model, center_criterion_part, center_c
         img = img.cuda()
         cls_target = cls_target.cuda()
         parsing_target = parsing_target.cuda()
+        # img.to(device)
+        # cls_target.to(device)
+        # parsing_target.to(device)
+        # print("Now is model in Cuda?:")
+        # try:
+        #     print(next(model.parameters()).is_cuda)
+        # except:
+        #     print("next(model.parameters()).is_cuda failed")
+        # print(f"Now is img in Cuda? {img.is_cuda}")
+        # print(f"Now is cls_target in Cuda? {cls_target.is_cuda}")
+        # try:
+        #     print(f"Now is cls_target in Cuda? {cls_target.get_device()}")
+        # except:
+        #     print("get_device failed.")
+        # print(f"Now is cls_target in Cuda? {cls_target.is_cuda}")
+        # print(f"Now is parsing_target in Cuda? {parsing_target.is_cuda}")
         cls_score_part, cls_score_global, cls_score_fore, y_part, y_full, y_fore, part_pd_score = model(img)
+        #cls_target = cls_target.detach().cpu()
+        # print(f"After detach().cpu(), now is cls_target in Cuda? {cls_target.is_cuda}")
+        # print(f"Is y_fore in cuda? {y_fore.is_cuda}")
         loss = loss_fn(cls_score_part, cls_score_global, cls_score_fore, y_part, y_full, y_fore, part_pd_score, cls_target, parsing_target)
         loss.backward()
         optimizer.step()
@@ -156,26 +183,28 @@ def compute_features(clustering_loader, model, device, with_arm=False):
     pids=[]
     
     with torch.no_grad():
-        for batch_img, batch_mask_target_path, batch_pid in clustering_loader:
+        for batch_img, batch_mask_target_path, batch_pid in tqdm(clustering_loader):
             #mask_target_paths.append(batch_mask_target_path)
             batch_img = batch_img.to(device)
-            #print(batch_img.shape)
-            if with_arm:
+            if with_arm:    
                 _, _, _, batch_feats = model(batch_img)
             else:
                 _, batch_feats = model(batch_img)
-            batch_feats=batch_feats.detach().cpu()
+            #batch_feats=batch_feats.cpu().detach()
+            batch_feats = batch_feats.detach().cpu()
+            #print(f"[Clustering] img size: {batch_img.shape}, batch feats size: {batch_feats.size()}")
             feats.append(batch_feats)
             pids.extend(batch_pid)
             mask_target_paths.extend(batch_mask_target_path)
             #torch.cuda.empty_cache()
+    
     feats=torch.cat(feats, 0)
     shape = feats.shape
     feats = feats.view(shape[0], shape[1], -1)
     feats = feats.permute(0, 2, 1)
     feats = feats.numpy()
                 
-    
+    print("===This indicate computer features completed.===")
     return feats, mask_target_paths, pids, shape
 
 def cluster_for_each_identity(cfg, feats, mask_paths, shape):
@@ -266,13 +295,14 @@ def do_train_with_center(
 
 
     logger = logging.getLogger("reid_baseline.train")
-    logger.info("Start training")
+    logger.info(f"Start training, total epochs {epochs}")
     trainer = create_supervised_trainer_with_center(model, center_criterion_part, center_criterion_global, center_criterion_fore, optimizer, optimizer_center, loss_fn, cfg.SOLVER.CENTER_LOSS_WEIGHT, device=device)
     if with_arm:
         evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_arm(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)}, device=device, with_arm=with_arm)
     else:
         evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)}, device=device, with_arm=with_arm)
     checkpointer = ModelCheckpoint(output_dir, cfg.MODEL.NAME, checkpoint_period, n_saved=10, require_empty=False)
+    print("This means we created trainer and pretrained model loading.")
     timer = Timer(average=True)
 
     trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'model': model,
@@ -282,6 +312,7 @@ def do_train_with_center(
 
     timer.attach(trainer, start=Events.EPOCH_STARTED, resume=Events.ITERATION_STARTED,
                  pause=Events.ITERATION_COMPLETED, step=Events.ITERATION_COMPLETED)
+    print("This indicate we can finished the trainner add event handler.")
 
     # average metric to attach on trainer
     RunningAverage(output_transform=lambda x: x[0]).attach(trainer, 'avg_loss')
@@ -290,10 +321,6 @@ def do_train_with_center(
     @trainer.on(Events.STARTED)
     def start_training(engine):
         engine.state.epoch = start_epoch
-
-    @trainer.on(Events.EPOCH_STARTED)
-    def adjust_learning_rate(engine):
-        scheduler.step()
     
     @trainer.on(Events.EPOCH_STARTED)
     def adjust_mask_pseudo_labels(engine):     
@@ -301,7 +328,7 @@ def do_train_with_center(
         if engine.state.epoch%clustering_period==1 and engine.state.epoch <= clustering_stop:
         #if False:
         
-            
+            print("This inidicate we can enter the training may thread.")
             torch.cuda.empty_cache()
             feats, pseudo_labels_paths, pids, shape = compute_features(clustering_loader, model, device, with_arm)
             torch.cuda.empty_cache()
@@ -320,27 +347,31 @@ def do_train_with_center(
             logger.info('mask adjust use time: {0:.0f} s'.format(time.time()-cluster_begin))
             
             #evaluate the pseudo-part-labels
-            if cfg.DATASETS.NAMES=='market1501':
-                pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'Market-1501', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
-                gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'Market-1501', cfg.DATASETS.PREDICTED_GT_SUBDIR)
-                compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
+            # if cfg.DATASETS.NAMES=='market1501':
+            #     pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'Market-1501', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
+            #     gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'Market-1501', cfg.DATASETS.PREDICTED_GT_SUBDIR)
+            #     compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
                  
-            elif cfg.DATASETS.NAMES=='dukemtmc':
-                pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'DukeMTMC-reID', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
-                gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'DukeMTMC-reID', cfg.DATASETS.PREDICTED_GT_SUBDIR)
-                compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
+            # elif cfg.DATASETS.NAMES=='dukemtmc':
+            #     pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'DukeMTMC-reID', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
+            #     gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'DukeMTMC-reID', cfg.DATASETS.PREDICTED_GT_SUBDIR)
+            #     compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
                 
-            elif cfg.DATASETS.NAMES=='cuhk03_np_labeled':
-                pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/labeled', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
-                gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/labeled', cfg.DATASETS.PREDICTED_GT_SUBDIR)
-                compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
+            # elif cfg.DATASETS.NAMES=='cuhk03_np_labeled':
+            #     pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/labeled', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
+            #     gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/labeled', cfg.DATASETS.PREDICTED_GT_SUBDIR)
+            #     compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
                 
-            elif cfg.DATASETS.NAMES=='cuhk03_np_detected':
-                pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/detected', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
-                gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/detected', cfg.DATASETS.PREDICTED_GT_SUBDIR)
-                compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)                        
+            # elif cfg.DATASETS.NAMES=='cuhk03_np_detected':
+            #     pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/detected', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
+            #     gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/detected', cfg.DATASETS.PREDICTED_GT_SUBDIR)
+            #     compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)                        
 
-            torch.cuda.empty_cache()   
+            torch.cuda.empty_cache()  
+
+    @trainer.on(Events.EPOCH_STARTED)
+    def adjust_learning_rate(engine):
+        scheduler.step() 
     
     @trainer.on(Events.ITERATION_COMPLETED)
     def log_training_loss(engine):
@@ -371,7 +402,6 @@ def do_train_with_center(
             for r in [1, 5, 10]:
                 logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
             torch.cuda.empty_cache()
-
     trainer.run(train_loader, max_epochs=epochs)
     
 def do_train(
@@ -398,13 +428,14 @@ def do_train(
 
 
     logger = logging.getLogger("reid_baseline.train")
-    logger.info("Start training")
+    logger.info(f"Start training, total epochs {epochs}")
     trainer = create_supervised_trainer(model, optimizer, loss_fn, device=device)
     if with_arm:
         evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_arm(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)}, device=device, with_arm=with_arm)
     else:
         evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)}, device=device, with_arm=with_arm)
     checkpointer = ModelCheckpoint(output_dir, cfg.MODEL.NAME, checkpoint_period, n_saved=10, require_empty=False)
+    print("This means we created trainer and pretrained model loading.")
     timer = Timer(average=True)
 
     trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'model': model,
@@ -414,7 +445,7 @@ def do_train(
 
     timer.attach(trainer, start=Events.EPOCH_STARTED, resume=Events.ITERATION_STARTED,
                  pause=Events.ITERATION_COMPLETED, step=Events.ITERATION_COMPLETED)
-
+    print("This indicate we finished add event handler.")
     # average metric to attach on trainer
     RunningAverage(output_transform=lambda x: x[0]).attach(trainer, 'avg_loss')
     RunningAverage(output_transform=lambda x: x[1]).attach(trainer, 'avg_acc')
@@ -422,17 +453,13 @@ def do_train(
     @trainer.on(Events.STARTED)
     def start_training(engine):
         engine.state.epoch = start_epoch
-
-    @trainer.on(Events.EPOCH_STARTED)
-    def adjust_learning_rate(engine):
-        scheduler.step()
     
     @trainer.on(Events.EPOCH_STARTED)
     def adjust_mask_pseudo_labels(engine):     
         
         if engine.state.epoch%clustering_period==1 and engine.state.epoch <= clustering_stop:
         #if False:
-        
+            print("This indicate we can enter the main training thread.")
             
             torch.cuda.empty_cache()
             feats, pseudo_labels_paths, pids, shape = compute_features(clustering_loader, model, device, with_arm)
@@ -452,27 +479,31 @@ def do_train(
             logger.info('mask adjust use time: {0:.0f} s'.format(time.time()-cluster_begin))
             
             #evaluate the pseudo-part-labels
-            if cfg.DATASETS.NAMES=='market1501':
-                pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'Market-1501', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
-                gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'Market-1501', cfg.DATASETS.PREDICTED_GT_SUBDIR)
-                compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
+            # if cfg.DATASETS.NAMES=='market1501':
+            #     pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'Market-1501', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
+            #     gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'Market-1501', cfg.DATASETS.PREDICTED_GT_SUBDIR)
+            #     compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
                  
-            elif cfg.DATASETS.NAMES=='dukemtmc':
-                pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'DukeMTMC-reID', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
-                gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'DukeMTMC-reID', cfg.DATASETS.PREDICTED_GT_SUBDIR)
-                compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
+            # elif cfg.DATASETS.NAMES=='dukemtmc':
+            #     pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'DukeMTMC-reID', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
+            #     gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'DukeMTMC-reID', cfg.DATASETS.PREDICTED_GT_SUBDIR)
+            #     compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
                 
-            elif cfg.DATASETS.NAMES=='cuhk03_np_labeled':
-                pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/labeled', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
-                gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/labeled', cfg.DATASETS.PREDICTED_GT_SUBDIR)
-                compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
+            # elif cfg.DATASETS.NAMES=='cuhk03_np_labeled':
+            #     pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/labeled', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
+            #     gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/labeled', cfg.DATASETS.PREDICTED_GT_SUBDIR)
+            #     compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)
                 
-            elif cfg.DATASETS.NAMES=='cuhk03_np_detected':
-                pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/detected', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
-                gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/detected', cfg.DATASETS.PREDICTED_GT_SUBDIR)
-                compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)                        
+            # elif cfg.DATASETS.NAMES=='cuhk03_np_detected':
+            #     pred_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/detected', cfg.DATASETS.PSEUDO_LABEL_SUBDIR)
+            #     gt_dir = os.path.join(cfg.DATASETS.ROOT_DIR, 'cuhk03-np/detected', cfg.DATASETS.PREDICTED_GT_SUBDIR)
+            #     compute_IoU(pred_dir, gt_dir, cfg.CLUSTERING.PART_NUM)                        
 
-            torch.cuda.empty_cache()   
+            torch.cuda.empty_cache()
+
+    @trainer.on(Events.EPOCH_STARTED)
+    def adjust_learning_rate(engine):
+        scheduler.step()   
     
     @trainer.on(Events.ITERATION_COMPLETED)
     def log_training_loss(engine):

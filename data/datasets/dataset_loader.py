@@ -66,6 +66,25 @@ class ImageDataset(Dataset):
         '''
         return img, pid, camid, img_path, align_target, align_target_path
 
+class ValImageDataset(Dataset):
+    """Image Person ReID Dataset for Validation only"""
+
+    def __init__(self, dataset, transform=None):
+        self.dataset = dataset
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        img_path, pid = self.dataset[index]
+        img = read_image(img_path)
+        
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, pid, img_path
+
 class RandomErasing(object):
     """ Randomly selects a rectangle region in an image and erases its pixels.
         'Random Erasing Data Augmentation' by Zhong et al.

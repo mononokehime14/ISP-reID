@@ -26,10 +26,10 @@ def train(cfg):
     model = build_model(cfg, num_classes)
     
     if cfg.MODEL.IF_WITH_CENTER == 'on':
-        loss_func, center_criterion_part, center_criterion_global, center_criterion_fore = make_loss_with_center(cfg, num_classes)  
-        optimizer, optimizer_center = make_optimizer_with_center(cfg, model, center_criterion_part, center_criterion_global, center_criterion_fore)    
-    else:
-        loss_func = make_loss(cfg, num_classes)  
+        loss_func, center_criterion_part, center_criterion_global, center_criterion_fore = make_loss_with_center(cfg, num_classes)
+        optimizer, optimizer_center = make_optimizer_with_center(cfg, model, center_criterion_part, center_criterion_global, center_criterion_fore)  
+    else: 
+        loss_func = make_loss(cfg, num_classes)
         optimizer = make_optimizer(cfg, model)
         
     # Add for using self trained model
@@ -39,6 +39,9 @@ def train(cfg):
                                       cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
     else:
         print('Only support pretrain_choice for imagenet, but got {}'.format(cfg.MODEL.PRETRAIN_CHOICE))
+        start_epoch = 0
+        scheduler = WarmupMultiStepLR(optimizer, cfg.SOLVER.STEPS, cfg.SOLVER.GAMMA, cfg.SOLVER.WARMUP_FACTOR,
+                                      cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
     
     if cfg.MODEL.IF_WITH_CENTER == 'on':
         do_train_with_center(

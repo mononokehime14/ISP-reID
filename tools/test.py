@@ -10,7 +10,7 @@ from torch.backends import cudnn
 
 sys.path.append('.')
 from config import cfg
-from data import make_data_loader
+from data import make_data_loader, make_val_loader
 from engine.inference import inference
 from modeling import build_model
 from utils.logger import setup_logger
@@ -52,7 +52,8 @@ def main():
         os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
     cudnn.benchmark = True
 
-    train_loader, val_loader, num_query, num_classes, _ = make_data_loader(cfg)
+    #train_loader, val_loader, num_query, num_classes, _ = make_data_loader(cfg)
+    val_loader, num_query, num_classes= make_val_loader(cfg)
     model = build_model(cfg, num_classes)
     model.load_param(cfg.TEST.WEIGHT)
 

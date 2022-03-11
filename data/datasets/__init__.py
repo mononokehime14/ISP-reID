@@ -6,9 +6,12 @@
 from .dukemtmcreid import DukeMTMCreID
 from .occluded_dukemtmcreid import OccludedDukeMTMCreID
 from .market1501 import Market1501
-from .dataset_loader import ImageDataset, ImageDataset_train
+from .dataset_loader import ImageDataset, ImageDataset_train, ValImageDataset
 from .cuhk03_np_labeled import CUHK03_NP_labeled
 from .cuhk03_np_detected import CUHK03_NP_detected
+from .occludedreid import OccludedREID
+from .partialilids import PartialiLIDS
+from .partialreid import Partial_REID
 
 __factory = {
     'market1501': Market1501,
@@ -16,6 +19,9 @@ __factory = {
     'occluded_dukemtmc': OccludedDukeMTMCreID,
     'cuhk03_np_labeled': CUHK03_NP_labeled,
     'cuhk03_np_detected': CUHK03_NP_detected,
+    'occludedreid':OccludedREID,
+    'partialreid':Partial_REID,
+    'partialilids':PartialiLIDS
 }
 
 
