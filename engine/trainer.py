@@ -186,6 +186,7 @@ def compute_features(clustering_loader, model, device, with_arm=False):
         for batch_img, batch_mask_target_path, batch_pid in tqdm(clustering_loader):
             #mask_target_paths.append(batch_mask_target_path)
             batch_img = batch_img.to(device)
+            #print(f"Now is batch_img in Cuda? {batch_img.is_cuda}")
             if with_arm:    
                 _, _, _, batch_feats = model(batch_img)
             else:

@@ -50,8 +50,8 @@ _C.MODEL.NUM_JOINTS = 17
 _C.MODEL.NUM_CLASSES = 1000
 _C.MODEL.TAG_PER_JOINT = True
 _C.MODEL.TARGET_TYPE = 'gaussian'
-_C.MODEL.IMAGE_SIZE = [128,64]  # width * height, ex: 192 * 256
-_C.MODEL.HEATMAP_SIZE = [64,32] # width * height, ex: 24 * 32, the global feature map Mg is 1/4 of the input size.
+_C.MODEL.IMAGE_SIZE = [256,128]  # width * height, ex: 192 * 256
+_C.MODEL.HEATMAP_SIZE = [32,16] # width * height, ex: 24 * 32, the global feature map Mg is 1/4 of the input size.
 _C.MODEL.SIGMA = 2
 
 _C.MODEL.EXTRA = CN(new_allowed=True)
@@ -102,9 +102,9 @@ _C.TRAIN.IGNORE_LABEL = -1
 # -----------------------------------------------------------------------------
 _C.INPUT = CN()
 # Size of the image during training
-_C.INPUT.SIZE_TRAIN = [384, 128]
+_C.INPUT.SIZE_TRAIN = [256, 128]
 # Size of the image during test
-_C.INPUT.SIZE_TEST = [384, 128]
+_C.INPUT.SIZE_TEST = [256, 128]
 # Random probability for image horizontal flip
 _C.INPUT.PROB = 0.5
 # Random probability for random erasing

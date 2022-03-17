@@ -296,6 +296,9 @@ class HighResolutionNet(nn.Module):
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
         self.bn2 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
+                               bias=False)
+        self.bn3 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.layer1 = self._make_layer(Bottleneck, 64, 64, 4)
 
@@ -510,11 +513,23 @@ class HighResolutionNet(nn.Module):
         x = self.conv1(x)
         #print(f"after conv1 size {x.size()}")
         x = self.bn1(x)
+        #print(f"after bn1 size {x.size()}")
         x = self.relu(x)
+        #print(f"after relu1 size {x.size()}")
         x = self.conv2(x)
+        #print(f"after conv2 size {x.size()}")
         x = self.bn2(x)
+        #print(f"after bn2 size {x.size()}")
         x = self.relu(x)
+        #print(f"after relu2 size {x.size()}")
+        x = self.conv3(x)
+        #print(f"after conv3 size {x.size()}")
+        x = self.bn3(x)
+        #print(f"after bn3 size {x.size()}")
+        x = self.relu(x)
+        #print(f"after relu3 size {x.size()}")
         x = self.layer1(x)
+        #print(f"after layer1 size {x.size()}")
 
         x_list = []
         for i in range(self.stage2_cfg['NUM_BRANCHES']):
@@ -551,11 +566,14 @@ class HighResolutionNet(nn.Module):
         x3=F.upsample(x[3], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
 
         x = torch.cat([x[0], x1, x2, x3], 1)
+        #print(f"after concatenate size {x.shape}")
         if self.bigG:
             y_g = self.gap(x)
         x = self.cls_head(x)
+        #print(f"after cls_head size {x.shape}")
         mask = self.spatial_attn(x) #simple spatial attention. can be removed
         x = x*mask
+        #print(f"after mask size {x.shape}")
         
         N, f_h, f_w = x.size(0), x.size(2), x.size(3)
         part_cls_score = self.part_cls_layer(x)
