@@ -298,9 +298,9 @@ class HighResolutionNet(nn.Module):
         self.bn2 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
-        self.bn3 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
-        self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self._make_layer(Bottleneck, 64, 64, 4)
+        # self.bn3 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
+        # self.relu = nn.ReLU(inplace=True)
+        # self.layer1 = self._make_layer(Bottleneck, 64, 64, 4)
 
         self.stage2_cfg = cfg['MODEL']['EXTRA']['STAGE2']
         num_channels = self.stage2_cfg['NUM_CHANNELS']
@@ -522,11 +522,11 @@ class HighResolutionNet(nn.Module):
         #print(f"after bn2 size {x.size()}")
         x = self.relu(x)
         #print(f"after relu2 size {x.size()}")
-        x = self.conv3(x)
+        #x = self.conv3(x)
         #print(f"after conv3 size {x.size()}")
-        x = self.bn3(x)
+        #x = self.bn3(x)
         #print(f"after bn3 size {x.size()}")
-        x = self.relu(x)
+        #x = self.relu(x)
         #print(f"after relu3 size {x.size()}")
         x = self.layer1(x)
         #print(f"after layer1 size {x.size()}")

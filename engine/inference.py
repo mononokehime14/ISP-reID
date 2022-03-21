@@ -25,18 +25,28 @@ def create_supervised_evaluator(model, metrics,
         print(f"====check whether model in on GPU:{device}====")
         model.to(device)
 
+    # def _inference(engine, batch):
+    #     model.eval()
+    #     with torch.no_grad():
+    #         data, pids = batch
+    #         data = data.cuda()
+    #         if with_arm:
+    #             g_f_feat, part_feat, part_visible, _ = model(data)
+    #             return g_f_feat, part_feat, part_visible, pids
+    #         else:
+    #             feat, _ = model(data)
+    #             return feat, pids
     def _inference(engine, batch):
         model.eval()
         with torch.no_grad():
-            #data, pids, camids = batch
-            data, pids = batch
+            data, pids, camids = batch
             data = data.cuda()
             if with_arm:
                 g_f_feat, part_feat, part_visible, _ = model(data)
-                return g_f_feat, part_feat, part_visible, pids
+                return g_f_feat, part_feat, part_visible, pids, camids
             else:
                 feat, _ = model(data)
-                return feat, pids
+                return feat, pids, camids
 
     engine = Engine(_inference)
 
@@ -60,11 +70,19 @@ def inference(
     if cfg.TEST.RE_RANKING == 'no':
         print("Create evaluator")
         if with_arm:
-            evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_arm_nocamid(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)},
+            evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_arm(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)},
                                                 device=device, with_arm=with_arm)
         else:
-            evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_arm_nocamid(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)},
+            evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_arm(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)},
                                                 device=device, with_arm=with_arm)
+    # if cfg.TEST.RE_RANKING == 'no':
+    #     print("Create evaluator")
+    #     if with_arm:
+    #         evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_arm_nocamid(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)},
+    #                                             device=device, with_arm=with_arm)
+    #     else:
+    #         evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_arm_nocamid(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)},
+    #                                             device=device, with_arm=with_arm)
     print("Up to here no problem.")
     evaluator.run(val_loader)
     cmc, mAP = evaluator.state.metrics['r1_mAP']
