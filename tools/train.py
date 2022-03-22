@@ -24,6 +24,8 @@ def train(cfg):
 
     # prepare model
     model = build_model(cfg, num_classes)
+    if cfg.SOLVER.RESUME_PATH and cfg.SOLVER.RESUME_EPOCH > 0:
+        model.load_param(cfg.SOLVER.RESUME_PATH)
     
     if cfg.MODEL.IF_WITH_CENTER == 'on':
         loss_func, center_criterion_part, center_criterion_global, center_criterion_fore = make_loss_with_center(cfg, num_classes)
@@ -39,9 +41,9 @@ def train(cfg):
                                       cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
     else:
         print('Only support pretrain_choice for imagenet, but got {}'.format(cfg.MODEL.PRETRAIN_CHOICE))
-        start_epoch = 0
-        scheduler = WarmupMultiStepLR(optimizer, cfg.SOLVER.STEPS, cfg.SOLVER.GAMMA, cfg.SOLVER.WARMUP_FACTOR,
-                                      cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
+        # start_epoch = 0
+        # scheduler = WarmupMultiStepLR(optimizer, cfg.SOLVER.STEPS, cfg.SOLVER.GAMMA, cfg.SOLVER.WARMUP_FACTOR,
+        #                               cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
     
     if cfg.MODEL.IF_WITH_CENTER == 'on':
         do_train_with_center(

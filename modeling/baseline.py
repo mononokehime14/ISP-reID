@@ -41,7 +41,6 @@ class Baseline(nn.Module):
             self.in_planes = 256
             self.big_planes = 1920
             self.base = HighResolutionNet(cfg)
-        
 
         if pretrain_choice == 'imagenet':
             self.base.load_param(model_path)

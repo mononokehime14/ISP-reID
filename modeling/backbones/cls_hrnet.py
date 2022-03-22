@@ -299,8 +299,8 @@ class HighResolutionNet(nn.Module):
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
         # self.bn3 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
-        # self.relu = nn.ReLU(inplace=True)
-        # self.layer1 = self._make_layer(Bottleneck, 64, 64, 4)
+        self.relu = nn.ReLU(inplace=True)
+        self.layer1 = self._make_layer(Bottleneck, 64, 64, 4)
 
         self.stage2_cfg = cfg['MODEL']['EXTRA']['STAGE2']
         num_channels = self.stage2_cfg['NUM_CHANNELS']
