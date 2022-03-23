@@ -33,26 +33,28 @@ def train(cfg):
     else: 
         loss_func = make_loss(cfg, num_classes)
         optimizer = make_optimizer(cfg, model)
-    print(type(optimizer))
-    print(type(optimizer_center))
+
+    #Resume optimizer
     if cfg.SOLVER.RESUME_OPTIMIZER_PATH and cfg.SOLVER.RESUME_EPOCH > 0:
         optimizer_param_dict = torch.load(cfg.SOLVER.RESUME_OPTIMIZER_PATH)
         for i in optimizer_param_dict.state_dict():
             if 'classifier' in i:
                 continue
-            optimizer.state_dict()[i].copy_(optimizer_param_dict.state_dict()[i])
-        
+            optimizer.state_dict()[i] = optimizer_param_dict.state_dict()[i]
+
     # Add for using self trained model
     if cfg.MODEL.PRETRAIN_CHOICE == 'imagenet':
         start_epoch = cfg.SOLVER.RESUME_EPOCH
         scheduler = WarmupMultiStepLR(optimizer, cfg.SOLVER.STEPS, cfg.SOLVER.GAMMA, cfg.SOLVER.WARMUP_FACTOR,
-                                      cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD, start_epoch)
+                                      cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
+        #print(f"initial lr {scheduler.get_lr()[0]}")
+        for i in range(cfg.SOLVER.RESUME_EPOCH):
+            scheduler.step()
+            #print(f"update lr {scheduler.get_lr()[0]}")
+        print(f"Resume lr {scheduler.get_lr()[0]}")
     else:
         print('Only support pretrain_choice for imagenet, but got {}'.format(cfg.MODEL.PRETRAIN_CHOICE))
-        # start_epoch = 0
-        # scheduler = WarmupMultiStepLR(optimizer, cfg.SOLVER.STEPS, cfg.SOLVER.GAMMA, cfg.SOLVER.WARMUP_FACTOR,
-        #                               cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
-    
+ 
     if cfg.MODEL.IF_WITH_CENTER == 'on':
         do_train_with_center(
             cfg,
