@@ -196,6 +196,8 @@ _C.SOLVER.EVAL_PERIOD = 50
 _C.SOLVER.RESUME_EPOCH = 0
 # Resume model path
 _C.SOLVER.RESUME_PATH = ""
+# Resume optimizer path
+_C.SOLVER.RESUME_OPTIMIZER_PATH = ""
 
 # Number of images per batch
 # This is global, so if we have 8 GPUs and IMS_PER_BATCH = 16, each GPU will
