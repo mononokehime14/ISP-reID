@@ -1,13 +1,13 @@
 pip install --upgrade pytorch-ignite==0.1.2
 pip install yacs
-£¨apt install libomp-dev£©
+ï¿½ï¿½apt install libomp-devï¿½ï¿½
 pip install --upgrade faiss-gpu==1.6.1
 pip install tqdm
 pip install scipy
 
 
 #[Training]: Market-1501 Dataset
-python3 tools/train.py --config_file='configs/softmax_triplet.yml' MODEL.DEVICE_ID "('0')" MODEL.NAME "('HRNet32')" MODEL.PRETRAIN_PATH "('checkpoints/hrnetv2_w32_imagenet_pretrained.pth')" DATASETS.NAMES "('market1501')" DATASETS.ROOT_DIR "('data')" CLUSTERING.PART_NUM "(7)" DATASETS.PSEUDO_LABEL_SUBDIR "('train_pseudo_labels-ISP-7')"  OUTPUT_DIR "('checkpoints/ISP-market-7')" TEST.WITH_ARM "(True)" SOLVER.MAX_EPOCHS "120" DATALOADER.NUM_WORKERS "8"
+python3 tools/train.py --config_file='configs/softmax_triplet.yml' MODEL.DEVICE_ID "('0')" MODEL.NAME "('HRNet32')" MODEL.PRETRAIN_PATH "('checkpoints/hrnetv2_w32_imagenet_pretrained.pth')" DATASETS.NAMES "('market1501')" DATASETS.ROOT_DIR "('/home/reid/datasets')" CLUSTERING.PART_NUM "(7)" DATASETS.PSEUDO_LABEL_SUBDIR "('checkpoints/market1501/train_pseudo_labels-ISP-7')"  OUTPUT_DIR "('checkpoints/ISP-market-7')" TEST.WITH_ARM "(True)" SOLVER.MAX_EPOCHS "120" DATALOADER.NUM_WORKERS "8"
 
 #[Training]: DukeMTMC Dataset
 python3 tools/train.py --config_file='configs/softmax_triplet.yml' MODEL.DEVICE_ID "('0')" MODEL.NAME "('HRNet32')" MODEL.PRETRAIN_PATH "('checkpoints/hrnetv2_w32_imagenet_pretrained.pth')" DATASETS.NAMES "('dukemtmc')" DATASETS.ROOT_DIR "('data')" CLUSTERING.PART_NUM "(7)" DATASETS.PSEUDO_LABEL_SUBDIR "('train_pseudo_labels-ISP-7')"  OUTPUT_DIR "('checkpoints/ISP-duke-7')" TEST.WITH_ARM "(True)" SOLVER.MAX_EPOCHS "120" DATALOADER.NUM_WORKERS "8"

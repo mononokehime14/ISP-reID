@@ -11,7 +11,7 @@ from torch.backends import cudnn
 sys.path.append('.')
 from config import cfg
 from data import make_data_loader
-from engine.inference import inference
+from engine.inference import inference, inference_occluded_duke
 from modeling import build_model
 from utils.logger import setup_logger
 
@@ -56,7 +56,7 @@ def main():
     model = build_model(cfg, num_classes)
     model.load_param(cfg.TEST.WEIGHT)
 
-    inference(cfg, model, val_loader, num_query)
+    inference_occluded_duke(cfg, model, val_loader, num_query)
 
 
 if __name__ == '__main__':
